@@ -1,0 +1,2 @@
+# CsvToKafka
+功能类似于filebeat，能够把csv中的增量数据发送到kafka中
