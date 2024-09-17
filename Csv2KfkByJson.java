@@ -19,11 +19,13 @@ public class Csv2KfkByJson {
     private static String delimiter;
     // 字段列表（,分割）
     private static String fldListStr;
+    private static Boolean isDebug = false;
+
 
     public static void main(String[] args) {
-        if (args.length < 2) {
+        if (args.length < 5) {
             System.out.println("请提供CSV文件路径和分隔符作为参数");
-            System.out.println("usage: <0>文件全路径  <1>分隔符 <2>字段列表(,号分割) <3>topic名 <4>kafka服务器和端口列表");
+            System.out.println("usage: <0>文件全路径  <1>分隔符 <2>字段列表(,号分割) <3>topic名 <4>kafka服务器和端口列表 <5>debugMode(0或1)");
             return;
         }
 
@@ -32,6 +34,8 @@ public class Csv2KfkByJson {
         fldListStr = args[2];
         KAFKA_TOPIC = args[3];
         KAFKA_BOOTSTRAP_SERVERS = args[4];
+        String isDebugStr = args[5].trim();
+        isDebug = "1".equals(isDebugStr);
 
         Properties props = new Properties();
         props.put("bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS);
@@ -85,11 +89,11 @@ public class Csv2KfkByJson {
                     continue;
 
                 try {
-                    System.out.println(line);
+                    if (isDebug) System.out.println(line);
                     String jsonLine = convertCsvToJsonByLine(line, csvSchema);
                     if (null == jsonLine || "null".equals(jsonLine) || jsonLine.length() == 0)
                         continue;
-                    System.out.println(jsonLine);
+                    if (isDebug) System.out.println(jsonLine);
                     producer.send(new ProducerRecord<>(KAFKA_TOPIC, jsonLine));
                 } catch (JsonProcessingException e) {
                     // 忽略无法解析的行，但打印日志以供调试
