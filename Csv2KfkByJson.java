@@ -78,25 +78,40 @@ public class Csv2KfkByJson {
                                        CsvSchema csvSchema,
                                        long lastPosition) throws IOException {
         File csvFile = new File(csvFilePath);
-//        CsvSchema csvSchema = CsvSchema.emptySchema().withHeader().withColumnSeparator(delimiter.charAt(0));
         try (RandomAccessFile raf = new RandomAccessFile(csvFile, "r")) {
             raf.seek(lastPosition);
             String line;
+            String[] fldList = fldListStr.split(",");
             while ((line = raf.readLine()) != null) {
                 line = line.trim();
-                // 忽略空行
-                if (line.trim().isEmpty())
+                if (line.isEmpty())
                     continue;
 
                 try {
                     if (isDebug) System.out.println(line);
-                    String jsonLine = convertCsvToJsonByLine(line, csvSchema);
+                    String jsonLine;
+                    // 判断分隔符长度
+                    if (delimiter.length() > 1) {
+                        // 多字符分隔符，手动分割
+                        String[] values = line.split(java.util.regex.Pattern.quote(delimiter), -1);
+                        if (values.length != fldList.length) {
+                            System.err.println("字段数不匹配，跳过: " + line);
+                            continue;
+                        }
+                        Map<String, String> rowAsMap = new LinkedHashMap<>();
+                        for (int i = 0; i < fldList.length; i++) {
+                            rowAsMap.put(fldList[i], values[i]);
+                        }
+                        jsonLine = new ObjectMapper().writeValueAsString(rowAsMap);
+                    } else {
+                        // 单字符分隔符，保持原有逻辑
+                        jsonLine = convertCsvToJsonByLine(line, csvSchema);
+                    }
                     if (null == jsonLine || "null".equals(jsonLine) || jsonLine.length() == 0)
                         continue;
                     if (isDebug) System.out.println(jsonLine);
                     producer.send(new ProducerRecord<>(KAFKA_TOPIC, jsonLine));
-                } catch (JsonProcessingException e) {
-                    // 忽略无法解析的行，但打印日志以供调试
+                } catch (Exception e) {
                     System.err.println("Failed to parse line: " + line);
                     e.printStackTrace();
                 }
